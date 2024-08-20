@@ -1,1 +1,1 @@
-web: poetry run fastapi run server.py
+web: python3 -m fastapi run server.py
