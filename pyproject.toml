@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "eventsmaster"
+version = "0.1.0"
+description = "An events manager for the SAD and HC at large!"
+authors = ["Arpan Pandey <arpanpandey.aps@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = {extras = ["standard"], version = "^0.112.1"}
+uvicorn = "^0.30.6"
+pyairtable = "^2.3.3"
+python-dotenv = "^1.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
