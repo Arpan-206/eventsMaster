@@ -99,5 +99,5 @@ def get_event_registrations(event_slug: str) -> list[dict]:
 def register_for_event(event_slug: str, name: str, slack_id: str, email: str) -> dict:
     eve = get_event_by_slug(event_slug)
     reg = EventRegistration(event=[eve], name=name, slack_id=slack_id, email=email)
-    # reg.save()
+    reg.save()
     return clean_dict_and_reg(reg)
