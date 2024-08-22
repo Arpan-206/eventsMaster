@@ -26,7 +26,6 @@ def clean_dict_and_eve(event):
 
 def clean_dict_and_reg(reg):
     x = {
-        'id': reg.id,
         'event': [clean_dict_and_eve(e) for e in reg.event][0],
         'name': reg.name,
         'slack_id': reg.slack_id,
@@ -94,10 +93,31 @@ def get_event_by_id(id: str) -> Event:
 def get_event_registrations(event_slug: str) -> list[dict]:
     eve = get_event_by_slug(event_slug)
     reg = EventRegistration.all()
-    return [clean_dict_and_reg(r) for r in reg if r.event == eve]
+    list_of_reg = [clean_dict_and_reg(r) for r in reg if list(r.event)[0].slug == eve.slug]
+    return list_of_reg
 
 def register_for_event(event_slug: str, name: str, slack_id: str, email: str) -> dict:
     eve = get_event_by_slug(event_slug)
     reg = EventRegistration(event=[eve], name=name, slack_id=slack_id, email=email)
+    # check if user already registered
+    for r in get_event_registrations(event_slug):
+        if r['slack_id'] == slack_id:
+            return clean_dict_and_reg(r)
     reg.save()
     return clean_dict_and_reg(reg)
+
+def check_registration(event_slug: str, slack_id: str) -> bool:
+    for r in get_event_registrations(event_slug):
+        if r['slack_id'] == slack_id:
+            return True
+    return False
+
+def unregister_for_event(event_slug: str, slack_id: str) -> bool:
+    eve = get_event_by_slug(event_slug)
+    reg = EventRegistration.all()
+    for r in reg:
+        if list(r.event)[0].slug == eve.slug and r.slack_id == slack_id:
+            r.delete()
+            return True
+
+    return False

@@ -17,11 +17,17 @@ app = App(
 )
 
 @app.command("/events")
-def events(ack, body, say):
+def events(ack, body, say, respond):
     ack()
-    events = at.get_past_events()
+    events = at.get_upcoming_events()
+
+    # check if the command was sent in a DM
+    if not body['channel_name'] == "directmessage":
+        respond("Please use this command in a DM with me.")
+        return
+
     if len(events) == 0:
-        say("No upcoming events!")
+        respond("No upcoming events!", )
     else:
         data = {
             "type": "home",
@@ -48,44 +54,108 @@ def events(ack, body, say):
         }
 
         for event in events:
-            data["blocks"].extend([{
-                "type": "divider"
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*<{event['announcement_post']}|{event['title']}>*\n {event['start_time'].strftime('%B %d, %H:%M')} - {event['end_time'].strftime('%B %d, %H:%M')} UTC |  Convert to your timezone <{event['time50_link']}|here>."
-                }
-            },
-            {
-                "type": "actions",
-                "elements": [
-                    {
-					"type": "button",
-					"text": {
-						"type": "plain_text",
-						"emoji": True,
-						"text": "RSVP"
-					},
-					"style": "primary",
-					"value": f"rsvp_{event['id']}",
-					"action_id": "rsvp_button_click"
-				},
-                ]
-            }])
-
+            if not at.check_registration(event_slug=event['slug'], slack_id=body['user_id']):
+                data["blocks"].extend([{
+                    "type": "divider"
+                },
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"*<{event['announcement_post']}|{event['title']}>*\n {event['start_time'].strftime('%B %d, %H:%M')} - {event['end_time'].strftime('%B %d, %H:%M')} UTC |  Convert to your timezone <{event['time50_link']}|here>."
+                    }
+                },
+                {
+                    "type": "actions",
+                    "elements": [
+                        {
+    					"type": "button",
+    					"text": {
+    						"type": "plain_text",
+    						"emoji": True,
+    						"text": "RSVP"
+    					},
+    					"style": "primary",
+    					"value": f"rsvp_{event['id']}",
+    					"action_id": "rsvp_button_click"
+    				},
+                    ]
+                }])
+            else:
+                data["blocks"].extend([{
+                    "type": "divider"
+                },
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"*<{event['announcement_post']}|{event['title']}>*\n {event['start_time'].strftime('%B %d, %H:%M')} - {event['end_time'].strftime('%B %d, %H:%M')} UTC |  Convert to your timezone <{event['time50_link']}|here>."
+                    }
+                },
+                {
+                    "type": "actions",
+                    "elements": [
+                        {
+    					"type": "button",
+    					"text": {
+    						"type": "plain_text",
+    						"emoji": True,
+    						"text": "un-RSVP (why though :shrug:?)"
+    					},
+    					"style": "danger",
+    					"value": f"unrsvp_{event['id']}",
+    					"action_id": "unrsvp_button_click"
+    				},
+                    ]
+                }])
         say(data)
 
 @app.action("rsvp_button_click")
-def handle_some_action(ack, body, client, say):
+def handle_rsvp_button(ack, body, client, respond):
     ack()
     event_id = body["actions"][0]["value"].split("_")[1]
     event = at.get_event_by_id(event_id)
     user = client.users_info(user=body["user"]["id"])
-    at.register_for_event(event.slug, user["user"]["real_name"], user["user"]["id"], user["user"]["profile"]["email"])
 
-    say(f"RSVP'd for *{event.title}*!")
+    # check if user is already registered
+    if at.check_registration(event.slug, user["user"]["id"]):
+        respond(f"You are already registered for *{event.title}*!")
+
+    at.register_for_event(event.slug, user["user"]["real_name"], user["user"]["id"], user["user"]["profile"]["email"])
+    respond(f"RSVP'd for *{event.title}*!")
+
+@app.action("unrsvp_button_click")
+def handle_unrsvp_button(ack, body, client, respond):
+    ack()
+    event_id = body["actions"][0]["value"].split("_")[1]
+    event = at.get_event_by_id(event_id)
+    user = client.users_info(user=body["user"]["id"])
+
+    # check if user is already registered
+    if not at.check_registration(event.slug, user["user"]["id"]):
+        respond(f"You are not registered for *{event.title}*!")
+
+    at.unregister_for_event(event.slug, user["user"]["id"])
+
+    respond(f"Un-RSVP'd for *{event.title}*!")
+
+
+
+# Clear DM with bot
+@app.command("/clear_dm")
+def clear_dm(ack, client, body, respond):
+    ack()
+    # Get the ID of the DM channel
+    channel_id = body["channel_id"]
+
+    # Get a list of all messages in the channel
+    messages = client.conversations_history(channel=channel_id)["messages"]
+
+    for message in messages:
+        # Delete the message
+        client.chat_delete(channel=channel_id, ts=message["ts"])
+
+    respond("Deleted all messages in this DM!")
 
 # Ready? Start your app!
 if __name__ == "__main__":
