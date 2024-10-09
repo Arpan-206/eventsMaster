@@ -5,6 +5,7 @@ description = "An events manager for the SAD and HC at large!"
 authors = ["Arpan Pandey <arpanpandey.aps@gmail.com>"]
 license = "MIT"
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"
